@@ -9,6 +9,7 @@ import shapely.geometry as spg
 from dateutil.parser import parse
 from shapely import wkt, get_srid, set_srid
 from shapely.geometry.base import BaseGeometry
+import numpy as np
 
 from .errors import report_meos_exception
 
@@ -15781,29 +15782,26 @@ def tpointseq_make_coords(
     geodetic: bool,
     lower_inc: bool,
     upper_inc: bool,
-    interp: "interpType",
+    linear: bool, #     interp: "interpType",
     normalize: bool,
 ) -> "TSequence *":
-    xcoords_converted = _ffi.cast("const double *", xcoords)
-    ycoords_converted = _ffi.cast("const double *", ycoords)
-    zcoords_converted = _ffi.cast("const double *", zcoords)
-    times_converted = _ffi.cast("const TimestampTz *", times)
-    srid_converted = _ffi.cast("int32", srid)
-    interp_converted = _ffi.cast("interpType", interp)
+    
+    xcoords = np.ascontiguousarray(xcoords, dtype=np.float64)
+    ycoords = np.ascontiguousarray(ycoords, dtype=np.float64)
+    x_c = _ffi.cast("double *", xcoords.ctypes.data)
+    y_c = _ffi.cast("double *", ycoords.ctypes.data)
+
+    if zcoords is not None:
+        zcoords = np.ascontiguousarray(zcoords, dtype=np.float64)
+        z_c = _ffi.cast("double *", zcoords.ctypes.data)
+    else:
+        z_c = _ffi.NULL
+
     result = _lib.tpointseq_make_coords(
-        xcoords_converted,
-        ycoords_converted,
-        zcoords_converted,
-        times_converted,
-        count,
-        srid_converted,
-        geodetic,
-        lower_inc,
-        upper_inc,
-        interp_converted,
-        normalize,
+        x_c, y_c, z_c, times, count, srid,
+        geodetic, lower_inc, upper_inc,
+        linear, normalize
     )
-    _check_error()
     return result if result != _ffi.NULL else None
 
 
